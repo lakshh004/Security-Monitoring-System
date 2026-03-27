@@ -1,11 +1,9 @@
-<img src="https://cdn.prod.website-files.com/677c400686e724409a5a7409/6790ad949cf622dc8dcd9fe4_nextwork-logo-leather.svg" alt="NextWork" width="300" />
-
 # Build a Security Monitoring System
 
 **Project Link:** [View Project](http://learn.nextwork.org/projects/aws-security-monitoring)
 
 **Author:** Lakshya Purohit  
-**Email:** theridiculousboy@gmail.com
+**Email:** purohitduttlakshya@gmail.com
 
 ---
 
