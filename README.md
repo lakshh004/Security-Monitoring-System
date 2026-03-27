@@ -12,20 +12,12 @@
 Built a real-time security monitoring system on AWS that detects sensitive API
 activity and sends automated email alerts within minutes of a security event.
 
-Instead of manually checking CloudTrail logs, everything is event-driven —
-CloudTrail captures the activity, CloudWatch filters for the exact event,
-an alarm fires, and SNS delivers an email notification automatically.
+Instead of manually checking logs, everything is event-driven — CloudTrail
+captures the activity, CloudWatch filters for the exact event, an alarm fires,
+and SNS delivers an email notification automatically.
 
-The system detects:
-- Unauthorized or unexpected secret access via Secrets Manager
-- GetSecretValue API calls regardless of whether made via console or CLI
-- Sustained access patterns above defined thresholds
-
----
-
-## Architecture
-
-<!-- SCREENSHOT: Architecture diagram -->
+Reduced mean time to detection (MTTD) of unauthorized secret access from
+~10-15 minutes to under 2 minutes using event-driven metric filters.
 
 ---
 
@@ -34,7 +26,7 @@ The system detects:
 | Service | Role |
 |---|---|
 | AWS CloudTrail | Captures all API activity across the account |
-| AWS CloudWatch | Ingests CloudTrail logs, applies metric filters, triggers alarms |
+| AWS CloudWatch | Ingests logs, applies metric filters, triggers alarms |
 | AWS SNS | Sends email notifications when alarm fires |
 | AWS Secrets Manager | Stores the secret being monitored |
 | AWS S3 | Stores CloudTrail log files |
@@ -44,111 +36,88 @@ The system detects:
 ## How It Works
 
 ### 1. Secret Creation
-Created a secret in Secrets Manager as the monitored resource.
-Any access to this secret — whether via the AWS console or CLI — generates
-a `GetSecretValue` event in CloudTrail.
-<img width="530" height="174" alt="image" src="https://github.com/user-attachments/assets/88e7862b-9c6f-4c23-b5d0-4149bf0d792c" />
+Created a secret in Secrets Manager as the monitored resource. Any access to
+this secret — via the AWS console or CLI — generates a `GetSecretValue` event
+in CloudTrail.
+
+![Secret created in Secrets Manager] <img width="525" height="166" alt="image" src="https://github.com/user-attachments/assets/5be10897-14b8-4252-a398-e7f1ccf48961" />
 
 
 ---
 
-### 2. CloudTrail Setup
-Configured a CloudTrail trail to capture Management Events across the account.
-Management events cover API calls like `GetSecretValue`, `CreateUser`,
-`DeleteBucket` — actions that affect AWS resources rather than data inside them.
+### 2. Verifying CloudTrail Captures the Event
+Retrieved the secret via both the Secrets Manager console and AWS CLI using
+`get-secret-value` in CloudShell. Both methods generated a `GetSecretValue`
+event in CloudTrail's event history — confirming CloudTrail captures secret
+access regardless of how it's triggered.
 
-Both Read and Write activity is tracked, since secret access is a Read event.
-<img width="529" height="171" alt="image" src="https://github.com/user-attachments/assets/7b518d6e-c235-4630-b12f-8450447e424b" />
-
-
----
-
-### 3. Verifying CloudTrail Captures the Event
-Retrieved the secret twice — once via the Secrets Manager console and once
-via AWS CLI using `get-secret-value` in CloudShell.
-
-Both methods generated a `GetSecretValue` event in CloudTrail's event history,
-confirming that CloudTrail captures secret access regardless of how it's done.
-
-<img width="518" height="288" alt="image" src="https://github.com/user-attachments/assets/16e6e044-f675-4ea1-9020-155807c0b109" />
+![GetSecretValue event in CloudTrail]
+<img width="535" height="162" alt="image" src="https://github.com/user-attachments/assets/b5bfdff7-6e63-4d0a-8aec-31f795843fee" />
 
 
 ---
 
-### 4. CloudWatch Metric Filter
-Sent CloudTrail logs to a CloudWatch Log Group, then created a metric filter
-to count `GetSecretValue` events specifically.
+### 3. CloudWatch Metric Filter
+Sent CloudTrail logs to a CloudWatch Log Group and created a metric filter
+to count `GetSecretValue` events specifically. The metric increments by 1
+each time the event is detected.
 
-The metric increments by 1 each time the event is detected.
-Default value is 0 when the event does not occur in a given period.
-
-<img width="529" height="274" alt="image" src="https://github.com/user-attachments/assets/bcfb6d8b-3c9c-40a0-a0ce-77e625b85547" />
+![CloudWatch metric filter]<img width="531" height="296" alt="image" src="https://github.com/user-attachments/assets/5640b915-3088-49af-818e-799bfcc8821e" />
 
 
 ---
 
-### 5. CloudWatch Alarm
+### 4. CloudWatch Alarm + SNS
 Set an alarm to trigger when the SUM of `GetSecretValue` events exceeds 1
-within a 5-minute window.
+within a 5-minute window. Linked to an SNS topic that emails on alarm state
+change.
 
-Key distinction: configured as SUM not AVERAGE — using AVERAGE caused the
-alarm to not fire correctly during initial testing since a single event
-averaged across the period fell below the threshold.
+Important: configured as SUM not AVERAGE — using AVERAGE caused the alarm
+to not fire correctly during initial testing since a single event averaged
+across the period fell below the threshold. Fixing this was the key
+troubleshooting step in the project.
 
-Alarm is linked to an SNS topic that sends an email notification on state
-change to `IN ALARM`.
+ <img width="530" height="273" alt="image" src="https://github.com/user-attachments/assets/ed2f182f-ba3c-4d81-a451-6d2f4271cacb" />
+<img width="543" height="274" alt="image" src="https://github.com/user-attachments/assets/f39cf12a-5ea1-4001-bdf4-11b4590112cd" />
 
-<!-- SCREENSHOT: CloudWatch alarm configured with SNS action -->
-
----
-
-### 6. SNS Email Notification
-Created an SNS topic and subscribed an email address to it.
-AWS requires manual email confirmation before SNS will deliver notifications
-to prevent unwanted subscriptions.
-
-<img width="529" height="276" alt="image" src="https://github.com/user-attachments/assets/8fab673d-65cc-4915-aed3-454a4b783c9f" />
 
 
 ---
 
 ## Results
 
-After fixing the AVERAGE → SUM threshold issue, accessed the secret once more.
-Received an email notification within 1-2 minutes of the `GetSecretValue` event.
-CloudWatch alarm moved to `IN ALARM` state as expected.
+After fixing the threshold, accessed the secret once more and received an
+email notification within 1-2 minutes. CloudWatch alarm moved to IN ALARM
+state as expected.
 
-<img width="529" height="276" alt="image" src="https://github.com/user-attachments/assets/c3534f8e-7280-40dc-ac28-9733982b5052" />
-
-<img width="526" height="267" alt="image" src="https://github.com/user-attachments/assets/1febb2c6-cdf9-4bee-b985-013a746ebbb7" />
+![Email notification received and alarm in IN ALARM state]<img width="536" height="233" alt="image" src="https://github.com/user-attachments/assets/c6192a12-0a1b-4a06-8f2a-86bc801a21f4" />
 
 
 ---
 
 ## CloudTrail vs CloudWatch for Alerting
 
-Tested both approaches side by side:
+Tested both approaches to understand the difference:
 
-**CloudWatch (metric filter + alarm):** Targeted, low noise. Only fires when
-the specific event threshold is crossed. Email contains actionable context.
+**CloudWatch metric filter + alarm** — targeted and low noise. Only fires
+when the specific event threshold is crossed. Email contains actionable context.
 
-**CloudTrail direct SNS:** High volume, low signal. Inbox flooded immediately
+**CloudTrail direct SNS** — high volume, low signal. Inbox flooded immediately
 as SNS fired for every log file delivery to S3, not for specific events.
-Logs only indicated new files were stored, not what activity occurred.
 
-**Conclusion:** CloudWatch metric filters are the correct approach for
-event-specific security alerting. CloudTrail SNS is better suited for
-audit log delivery pipelines, not real-time alerting.
+Conclusion: CloudWatch metric filters are the right approach for event-specific
+security alerting. CloudTrail SNS is better suited for audit log delivery,
+not real-time alerting.
 
-<img width="534" height="226" alt="image" src="https://github.com/user-attachments/assets/c32dd852-04b3-4162-b98f-c353b19504d3" />
-<img width="527" height="199" alt="image" src="https://github.com/user-attachments/assets/d01711c1-1d26-430f-867e-5931d8b2005b" />
+![CloudTrail SNS inbox flood vs CloudWatch targeted alert]<img width="543" height="206" alt="image" src="https://github.com/user-attachments/assets/9e4deb45-254c-480e-be44-2458e85be1c9" />
+
 
 ---
 
 ## Key Learnings
 
-- CloudTrail captures API activity across console, CLI, and SDK uniformly
+- CloudTrail captures API activity uniformly across console, CLI, and SDK
 - CloudWatch metric filters enable precise, low-noise security alerting
-- SUM vs AVERAGE matters significantly when configuring alarm thresholds
-- SNS requires confirmed subscriptions before delivering notifications
-- Event-driven alerting reduces MTTD without any manual log inspection
+- SUM vs AVERAGE threshold configuration has significant real-world impact
+- Event-driven alerting reduces MTTD without manual log inspection
+- CloudTrail SNS and CloudWatch serve fundamentally different alerting purposes
