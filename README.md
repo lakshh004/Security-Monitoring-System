@@ -40,8 +40,9 @@ Created a secret in Secrets Manager as the monitored resource. Any access to
 this secret — via the AWS console or CLI — generates a `GetSecretValue` event
 in CloudTrail.
 
-![Secret created in Secrets Manager] <img width="525" height="166" alt="image" src="https://github.com/user-attachments/assets/5be10897-14b8-4252-a398-e7f1ccf48961" />
+**Secret created in Secrets Manager**
 
+<img width="525" height="166" alt="image" src="https://github.com/user-attachments/assets/5be10897-14b8-4252-a398-e7f1ccf48961" />
 
 ---
 
@@ -51,9 +52,9 @@ Retrieved the secret via both the Secrets Manager console and AWS CLI using
 event in CloudTrail's event history — confirming CloudTrail captures secret
 access regardless of how it's triggered.
 
-![GetSecretValue event in CloudTrail]
-<img width="535" height="162" alt="image" src="https://github.com/user-attachments/assets/b5bfdff7-6e63-4d0a-8aec-31f795843fee" />
+**GetSecretValue event in CloudTrail event history**
 
+<img width="535" height="162" alt="image" src="https://github.com/user-attachments/assets/b5bfdff7-6e63-4d0a-8aec-31f795843fee" />
 
 ---
 
@@ -62,8 +63,9 @@ Sent CloudTrail logs to a CloudWatch Log Group and created a metric filter
 to count `GetSecretValue` events specifically. The metric increments by 1
 each time the event is detected.
 
-![CloudWatch metric filter]<img width="531" height="296" alt="image" src="https://github.com/user-attachments/assets/5640b915-3088-49af-818e-799bfcc8821e" />
+**CloudWatch metric filter configured**
 
+<img width="531" height="296" alt="image" src="https://github.com/user-attachments/assets/5640b915-3088-49af-818e-799bfcc8821e" />
 
 ---
 
@@ -77,10 +79,13 @@ to not fire correctly during initial testing since a single event averaged
 across the period fell below the threshold. Fixing this was the key
 troubleshooting step in the project.
 
- <img width="530" height="273" alt="image" src="https://github.com/user-attachments/assets/ed2f182f-ba3c-4d81-a451-6d2f4271cacb" />
+**CloudWatch alarm configured with SNS action**
+
+<img width="530" height="273" alt="image" src="https://github.com/user-attachments/assets/ed2f182f-ba3c-4d81-a451-6d2f4271cacb" />
+
+**SNS topic and confirmed subscription**
+
 <img width="543" height="274" alt="image" src="https://github.com/user-attachments/assets/f39cf12a-5ea1-4001-bdf4-11b4590112cd" />
-
-
 
 ---
 
@@ -90,8 +95,9 @@ After fixing the threshold, accessed the secret once more and received an
 email notification within 1-2 minutes. CloudWatch alarm moved to IN ALARM
 state as expected.
 
-![Email notification received and alarm in IN ALARM state]<img width="536" height="233" alt="image" src="https://github.com/user-attachments/assets/c6192a12-0a1b-4a06-8f2a-86bc801a21f4" />
+**Email notification received — CloudWatch alarm in IN ALARM state**
 
+<img width="536" height="233" alt="image" src="https://github.com/user-attachments/assets/c6192a12-0a1b-4a06-8f2a-86bc801a21f4" />
 
 ---
 
@@ -109,8 +115,9 @@ Conclusion: CloudWatch metric filters are the right approach for event-specific
 security alerting. CloudTrail SNS is better suited for audit log delivery,
 not real-time alerting.
 
-![CloudTrail SNS inbox flood vs CloudWatch targeted alert]<img width="543" height="206" alt="image" src="https://github.com/user-attachments/assets/9e4deb45-254c-480e-be44-2458e85be1c9" />
+**CloudTrail SNS inbox flood vs CloudWatch targeted alert**
 
+<img width="543" height="206" alt="image" src="https://github.com/user-attachments/assets/9e4deb45-254c-480e-be44-2458e85be1c9" />
 
 ---
 
